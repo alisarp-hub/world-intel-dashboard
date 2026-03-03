@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT COMMAND CENTER | Global Strategic Monitoring 2026</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* ========================================================================
+        CSS MODULE 1: GLOBAL DESIGN SYSTEM & VARIABLES
+        ========================================================================
+        */
+        :root {
+            --bg-ultra-dark: #05070a;
+            --bg-panel: rgba(10, 15, 25, 0.95);
+            --neon-blue: #00f2ff;
+            --neon-blue-glow: rgba(0, 242, 255, 0.4);
+            --alert-red: #ff3e3e;
+            --alert-red-glow: rgba(255, 62, 62, 0.4);
+            --text-main: #e0e6ed;
+            --text-dim: #94a3b8;
+            --border-color: #1e293b;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --sidebar-width: 480px;
+            --transition-speed: 0.4s;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scrollbar-width: thin;
+            scrollbar-color: var(--neon-blue) var(--bg-ultra-dark);
+        }
+
+        body, html {
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-ultra-dark);
+            color: var(--text-main);
+            font-family: var(--font-main);
+        }
+
+        /* ========================================================================
+        CSS MODULE 2: LAYOUT ENGINE
+        ========================================================================
+        */
+        #app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        #map {
+            flex-grow: 1;
+            height: 100%;
+            z-index: 1;
+            background: #000; /* Fallback */
+        }
+
+        /* ========================================================================
+        CSS MODULE 3: SIDEBAR & PANELS
+        ========================================================================
+        */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100%;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border-color);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(15px);
+            transition: transform var(--transition-speed) cubic-bezier(0.16, 1, 0.3, 1);
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(100%);
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            left: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 80px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-right: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--neon-blue);
+            border-radius: 10px 0 0 10px;
+            z-index: 1001;
+        }
+
+        .panel-header {
+            padding: 25px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .panel-header h1 {
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 15px;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        .tab-btn.active {
+            color: var(--neon-blue);
+            background: rgba(0, 242, 255, 0.05);
+            border-bottom: 2px solid var(--neon-blue);
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* ========================================================================
+        CSS MODULE 4: STRATEGIC UI ELEMENTS
+        ========================================================================
+        */
+        .card {
+            background: rgba(30, 41, 59, 0.3);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            transition: 0.3s;
+        }
+
+        .card:hover {
+            border-color: var(--neon-blue);
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            color: var(--neon-blue);
+        }
+
+        /* Simulation Slider */
+        .sim-container {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--neon-blue);
+            background: #1e293b;
+            height: 6px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .remaining-stock-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #000;
+            border: 1px solid var(--neon-blue);
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stock-label {
+            font-size: 0.8rem;
+            color: var(--neon-blue);
+            margin-bottom: 10px;
+        }
+
+        .stock-val-anim {
+            font-family: var(--font-mono);
+            font-size: 1.8rem;
+            color: var(--text-main);
+            text-shadow: 0 0 10px var(--neon-blue-glow);
+        }
+
+        /* Live Flight Tracker Container */
+        .flight-tracker-container {
+            width: 100%;
+            height: 600px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ========================================================================
+        CSS MODULE 5: INCIDENT MARKERS & POPUPS
+        ========================================================================
+        */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-panel);
+            color: var(--text-main);
+            border: 1px solid var(--neon-blue);
+            border-radius: 4px;
+        }
+
+        .leaflet-popup-tip {
+            background: var(--neon-blue);
+        }
+
+        .incident-popup h3 {
+            color: var(--alert-red);
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .incident-popup p {
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .marker-pulse {
+            width: 12px;
+            height: 12px;
+            background: var(--alert-red);
+            border-radius: 50%;
+            box-shadow: 0 0 0 0 rgba(255, 62, 62, 1);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 62, 62, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(255, 62, 62, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 62, 62, 0); }
+        }
+
+        /* ========================================================================
+        CSS MODULE 6: FOOTER & NOTIFICATIONS
+        ========================================================================
+        */
+        .security-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 20px;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-align: center;
+            z-index: 2000;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            letter-spacing: 1px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+            }
+            .sidebar-toggle {
+                left: 0;
+                top: 10px;
+                transform: none;
+                height: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <div id="map"></div>
+
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-right" id="toggle-icon"></i>
+            </div>
+
+            <div class="panel-header">
+                <h1>OSINT Dashboard <span id="clock" style="float:right; font-size: 0.8rem; color: var(--text-dim);"></span></h1>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('intel')">Regional Intel</button>
+                <button class="tab-btn" onclick="switchTab('tracking')">Aerial Tracking</button>
+                <button class="tab-btn" onclick="switchTab('incidents')">Live Feed</button>
+            </div>
+
+            <div class="content-area">
+                <div id="tab-intel" class="tab-content">
+                    <div id="country-default-msg" style="text-align: center; margin-top: 50px; color: var(--text-dim);">
+                        <i class="fas fa-globe-americas fa-3x mb-3" style="margin-bottom: 20px;"></i>
+                        <p>Select a territory on the map to initiate strategic simulation.</p>
+                    </div>
+
+                    <div id="country-intel-data" style="display: none;">
+                        <h2 id="sel-country-name" style="font-weight: 800; color: var(--neon-blue); margin-bottom: 20px; border-left: 4px solid var(--neon-blue); padding-left: 15px;">COUNTRY NAME</h2>
+                        
+                        <div class="card">
+                            <h3 style="font-size: 0.8rem; margin-bottom: 15px; color: var(--text-dim);">CORE ENVENTORY ESTIMATES</h3>
+                            <div class="stat-grid">
+                                <div class="stat-item">
+                                    <span class="stat-label">Active Personnel</span>
+                                    <span class="stat-value" id="val-personnel">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Air Superiority</span>
+                                    <span class="stat-value" id="val-aircraft">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Missile Capability</span>
+                                    <span class="stat-value" id="val-missiles">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Status</span>
+                                    <span class="stat-value" style="color: #4ade80;">OPERATIONAL</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sim-container">
+                            <div class="slider-header">
+                                <span class="stat-label">Usage Simulation</span>
+                                <span id="usage-percent" style="font-family: var(--font-mono); color: var(--neon-blue);">0%</span>
+                            </div>
+                            <input type="range" id="usage-slider" min="0" max="100" value="0">
+                            
+                            <div class="remaining-stock-box">
+                                <div class="stock-label">PROJECTED REMAINING STOCKPILE</div>
+                                <div class="stock-val-anim" id="remaining-val">---</div>
+                                <p style="font-size: 0.6rem; color: var(--text-dim); margin-top: 10px;">Simulation based on high-intensity attrition models.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-tracking" class="tab-content" style="display: none;">
+                    <div class="card">
+                        <h3 style="font-size: 0.8rem; margin-bottom: 10px;">ADSB EXCHANGE - GLOBAL AIRSPACE</h3>
+                        <p style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 15px;">Real-time transponder data for commercial and non-sensitive military air traffic.</p>
+                        <div class="flight-tracker-container">
+                            <iframe id="adsb-iframe" src="https://globe.adsbexchange.com/?compactViewer=true" width="100%" height="100%" frameborder="0"></iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-incidents" class="tab-content" style="display: none;">
+                    <div id="incident-list">
+                        </div>
+                </div>
+            </div>
+        </aside>
+
+        <footer class="security-footer">
+            <i class="fas fa-shield-alt" style="color: var(--neon-blue); margin-right: 5px;"></i>
+            ALL MILITARY INFORMATION DISPLAYED IS BASED ON OPEN-SOURCE ESTIMATES AND SIMULATION MODELS. THIS PLATFORM DOES NOT PROVIDE REAL-TIME CLASSIFIED MILITARY DATA. DATA SOURCES: OSINT, GLOBALFIREPOWER, SIPRI.
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Strategic Data Storage (Open Source Estimates)
+        const COUNTRY_DATA = {
+            "USA": { personnel: "1,390,000", aircraft: "13,200", missile_min: 5000, missile_max: 8000 },
+            "Russia": { personnel: "1,150,000", aircraft: "4,100", missile_min: 4000, missile_max: 7000 },
+            "China": { personnel: "2,000,000", aircraft: "3,300", missile_min: 3000, missile_max: 5500 },
+            "Turkey": { personnel: "425,000", aircraft: "1,060", missile_min: 800, missile_max: 1500 },
+            "Ukraine": { personnel: "900,000", aircraft: "310", missile_min: 400, missile_max: 1200 },
+            "Israel": { personnel: "170,000", aircraft: "600", missile_min: 2000, missile_max: 4000 },
+            "France": { personnel: "200,000", aircraft: "1,000", missile_min: 300, missile_max: 600 },
+            "United Kingdom": { personnel: "150,000", aircraft: "660", missile_min: 200, missile_max: 500 },
+            "Iran": { personnel: "610,000", aircraft: "550", missile_min: 3000, missile_max: 6000 },
+            "North Korea": { personnel: "1,280,000", aircraft: "950", missile_min: 1000, missile_max: 3000 }
+        };
+
+        const INCIDENT_FEED = [
+            { id: 1, country: "Ukraine", type: "Drone Strike", coord: [48.3794, 31.1656], date: "2026-03-03", detail: "OSINT confirms interception of multiple Shahed-type drones over Kyiv region.", source: "https://liveuamap.com" },
+            { id: 2, country: "Yemen", type: "Missile Launch", coord: [15.3694, 44.1910], date: "2026-03-03", detail: "Houthi group claims anti-ship ballistic missile launch targeting southern Red Sea lanes.", source: "https://www.reuters.com" },
+            { id: 3, country: "Syria", type: "Airstrike", coord: [33.5138, 36.2765], date: "2026-03-02", detail: "Local reports indicate kinetic activity near Damascus International Airport logistics hubs.", source: "https://syriahr.com" },
+            { id: 4, country: "Taiwan Strait", type: "Naval Activity", coord: [24.4798, 119.5000], date: "2026-03-01", detail: "Large scale maritime exercise detected via satellite imagery monitoring.", source: "https://news.usni.org" }
+        ];
+
+        let map;
+        let selectedCountry = null;
+        let markersGroup = [];
+
+        // 
+        // ========================================================================
+        // JAVASCRIPT MODULE 2: INITIALIZATION
+        // ========================================================================
+        // 
+        function initApp() {
+            initMap();
+            initClock();
+            renderIncidents();
+            setupEventListeners();
+        }
+
+        function initMap() {
+            map = L.map('map', {
+                center: [20, 0],
+                zoom: 3,
+                zoomControl: false,
+                attributionControl: false
+            });
+
+            // CartoDB Voyager Dark Theme
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            // Fetch Country GeoJSON (using a standard low-res repo)
+            fetch('https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson')
+                .then(res => res.json())
+                .then(data => {
+                    L.geoJson(data, {
+                        style: countryStyle,
+                        onEachFeature: onEachCountry
+                    }).addTo(map);
+                });
+            
+            // Add Incident Markers
+            INCIDENT_FEED.forEach(inc => {
+                const pulseIcon = L.divIcon({
+                    className: 'marker-pulse',
+                    iconSize: [12, 12]
+                });
+
+                const marker = L.marker(inc.coord, { icon: pulseIcon }).addTo(map);
+                marker.bindPopup(`
+                    <div class="incident-popup">
+                        <h3>${inc.type} - ${inc.country}</h3>
+                        <p>${inc.detail}</p>
+                        <small style="color:var(--neon-blue)">DATE: ${inc.date}</small>
+                    </div>
+                `);
+            });
+        }
+
+        // 
+        // ========================================================================
+        // JAVASCRIPT MODULE 3: MAP INTERACTION
+        // ========================================================================
+        // 
+
+        function countryStyle(feature) {
+            return {
+                fillColor: '#1e293b',
+                weight: 1,
+                opacity: 1,
+                color: '#334155',
+                fillOpacity: 0.3
+            };
+        }
+
+        function onEachCountry(feature, layer) {
+            layer.on({
+                mouseover: (e) => {
+                    let layer = e.target;
+                    layer.setStyle({
+                        fillOpacity: 0.7,
+                        fillColor: '#00f2ff'
+                    });
+                },
+                mouseout: (e) => {
+                    let layer = e.target;
+                    layer.setStyle({
+                        fillOpacity: 0.3,
+                        fillColor: '#1e293b'
+                    });
+                },
+                click: (e) => {
+                    const countryName = feature.properties.ADMIN;
+                    handleCountrySelection(countryName);
+                }
+            });
+        }
+
+        function handleCountrySelection(name) {
+            selectedCountry = COUNTRY_DATA[name] || {
+                personnel: "Estimated 50k-200k",
+                aircraft: "Estimated 50-150",
+                missile_min: 100,
+                missile_max: 500
+            };
+
+            document.getElementById('country-default-msg').style.display = 'none';
+            document.getElementById('country-intel-data').style.display = 'block';
+            document.getElementById('sel-country-name').innerText = name;
+            
+            // Populate Stats
+            document.getElementById('val-personnel').innerText = selectedCountry.personnel;
+            document.getElementById('val-aircraft').innerText = selectedCountry.aircraft;
+            document.getElementById('val-missiles').innerText = `${selectedCountry.missile_min} - ${selectedCountry.missile_max}`;
+            
+            // Reset Simulation
+            const slider = document.getElementById('usage-slider');
+            slider.value = 0;
+            updateSimulation(0);
+
+            // Ensure Intel tab is visible
+            switchTab('intel');
+            
+            // Open sidebar if collapsed
+            document.getElementById('sidebar').classList.remove('collapsed');
+            document.getElementById('toggle-icon').className = 'fas fa-chevron-right';
+        }
+
+        // 
+        // ========================================================================
+        // JAVASCRIPT MODULE 4: SIMULATION LOGIC
+        // ========================================================================
+        // 
+
+        function updateSimulation(percent) {
+            if (!selectedCountry) return;
+
+            document.getElementById('usage-percent').innerText = percent + "%";
+            
+            const minStock = selectedCountry.missile_min;
+            const maxStock = selectedCountry.missile_max;
+            
+            // Linear reduction simulation
+            const currentMin = Math.floor(minStock * (1 - (percent / 100)));
+            const currentMax = Math.floor(maxStock * (1 - (percent / 100)));
+            
+            const displayBox = document.getElementById('remaining-val');
+            
+            // "Hackerman" animation effect
+            let frames = 0;
+            const interval = setInterval(() => {
+                displayBox.innerText = Math.floor(Math.random() * maxStock);
+                frames++;
+                if (frames > 10) {
+                    clearInterval(interval);
+                    displayBox.innerText = `${currentMin} - ${currentMax}`;
+                }
+            }, 30);
+        }
+
+        // 
+        // ========================================================================
+        // JAVASCRIPT MODULE 5: UI UTILITIES
+        // ========================================================================
+        // 
+
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            const icon = document.getElementById('toggle-icon');
+            sb.classList.toggle('collapsed');
+            
+            if (sb.classList.contains('collapsed')) {
+                icon.className = 'fas fa-chevron-left';
+            } else {
+                icon.className = 'fas fa-chevron-right';
+            }
+        }
+
+        function switchTab(tabId) {
+            // Hide all
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            // Show selected
+            document.getElementById('tab-' + tabId).style.display = 'block';
+            document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+        }
+
+        function renderIncidents() {
+            const list = document.getElementById('incident-list');
+            list.innerHTML = '';
+
+            INCIDENT_FEED.forEach(inc => {
+                const item = document.createElement('div');
+                item.className = 'card';
+                item.style.cursor = 'pointer';
+                item.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <span style="color:var(--alert-red); font-weight:bold; font-size:0.8rem;">${inc.type}</span>
+                        <span style="font-size:0.7rem; color:var(--text-dim);">${inc.date}</span>
+                    </div>
+                    <p style="font-size:0.85rem; margin-bottom:10px;">${inc.country}: ${inc.detail}</p>
+                    <span style="font-size:0.7rem; color:var(--neon-blue);">SOURCE: OPEN MEDIA ANALYSIS</span>
+                `;
+                item.onclick = () => {
+                    map.flyTo(inc.coord, 7);
+                };
+                list.appendChild(item);
+            });
+        }
+
+        function initClock() {
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('clock').innerText = now.toUTCString().replace('GMT', 'Z (UTC)');
+            }, 1000);
+        }
+
+        function setupEventListeners() {
+            const slider = document.getElementById('usage-slider');
+            slider.addEventListener('input', (e) => {
+                updateSimulation(e.target.value);
+            });
+        }
+
+        // Entry Point
+        window.onload = initApp;
+
+        // Custom Markers and Legend
+        
+    </script>
+</body>
+</html>
